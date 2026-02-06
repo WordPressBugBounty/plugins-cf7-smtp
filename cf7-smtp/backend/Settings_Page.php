@@ -1,4 +1,5 @@
 <?php
+
 /**
  * CF7_SMTP the settings page
  *
@@ -17,6 +18,7 @@ use cf7_smtp\Engine\Base;
  * Create the settings page in the backend
  */
 class Settings_Page extends Base {
+
 	/**
 	 * The settings form
 	 *
@@ -30,7 +32,6 @@ class Settings_Page extends Base {
 	 * @return void|bool
 	 */
 	public function initialize() {
-
 		if ( ! parent::initialize() ) {
 			return;
 		}
@@ -40,8 +41,8 @@ class Settings_Page extends Base {
 		// Add the options page and menu item.
 		\add_action( 'admin_menu', array( $this, 'add_plugin_admin_menu' ) );
 
-		$realpath        = (string) \realpath( \dirname( __FILE__ ) );
-		$plugin_basename = \plugin_basename( \plugin_dir_path( $realpath ) . CF7_SMTP_TEXTDOMAIN . '.php' );
+		$realpath        = (string) \realpath( __DIR__ );
+		$plugin_basename = \plugin_basename( \plugin_dir_path( $realpath ) . 'cf7-smtp' . '.php' );
 
 		\add_filter( 'plugin_action_links_' . $plugin_basename, array( $this, 'add_action_links' ) );
 	}
@@ -53,13 +54,12 @@ class Settings_Page extends Base {
 	 * @return void
 	 */
 	public function add_plugin_admin_menu() {
-
 		\add_submenu_page(
 			'wpcf7',
 			CF7_SMTP_NAME,
-			__( 'SMTP', CF7_SMTP_TEXTDOMAIN ),
+			__( 'SMTP', 'cf7-smtp' ),
 			'manage_options',
-			CF7_SMTP_TEXTDOMAIN,
+			'cf7-smtp',
 			array( $this, 'display_plugin_admin_page' )
 		);
 
@@ -80,19 +80,23 @@ class Settings_Page extends Base {
 	}
 
 	/**
-	 * Add settings action link to the plugins page.
+	 * Add a settings action link to the plugin page.
 	 *
 	 * @since {{plugin_version}}
 	 * @param array $links Array of links.
 	 * @return array
 	 */
 	public function add_action_links( array $links ) {
+		$plugin_option   = get_option( 'cf7-smtp' . '-options' );
+		$service_enabled = $plugin_option['service_enabled'] ?? false;
+		$url             = $service_enabled ? 'admin.php?page=cf7-smtp' : 'admin.php?page=wpcf7-integration&service=cf7-smtp&action=setup';
+		$label           = $service_enabled ? __( 'Setup SMTP', 'cf7-smtp' ) : __( 'Settings', 'cf7-smtp' );
 		return \array_merge(
 			array(
 				'settings' => sprintf(
 					'<a href="%s">%s</a>',
-					\admin_url( 'admin.php?page=' . CF7_SMTP_TEXTDOMAIN ),
-					\__( 'Settings', CF7_SMTP_TEXTDOMAIN )
+					\admin_url( $url ),
+					$label
 				),
 			),
 			$links

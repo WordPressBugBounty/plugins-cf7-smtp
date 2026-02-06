@@ -3,17 +3,20 @@
  * SMTP for Contact From 7
  * A trustworthy SMTP plugin for Contact Form 7. Simple and useful.
  *
- * Plugin Name:     SMTP for Contact From 7
+ * Plugin Name:     SMTP for Contact Form 7
  * Plugin URI:      https://wordpress.org/plugins/cf7-smtp
  * Description:     A trustworthy SMTP plugin for Contact Form 7. Simple and useful.
- * Version:         0.0.1
+ * Version:         1.0.0
  * Author:          codekraft
+ * Contributors:    gardenboi
  * Author URI:      https://modul-r.codekraft.it/
  * Text Domain:     cf7-smtp
  * License:         GPL 2.0+
  * License URI:     http://www.gnu.org/licenses/gpl-3.0.txt
+ * Text Domain:     cf7-smtp
  * Domain Path:     /languages
  * Requires PHP:    7.1
+ * Requires Plugins: contact-form-7
  * WordPress-Plugin-Boilerplate-Powered: v3.3.0
  *
  * @package   cf7_smtp
@@ -29,23 +32,46 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'CF7_SMTP_NAME', 'Contact Form 7 - SMTP' );
-define( 'CF7_SMTP_TEXTDOMAIN', 'cf7-smtp' );
 define( 'CF7_SMTP_MIN_PHP_VERSION', '7.1' );
+define( 'CF7_SMTP_VERSION', '1.0.0' );
 
 define( 'CF7_SMTP_PLUGIN_ROOT', plugin_dir_path( __FILE__ ) );
 define( 'CF7_SMTP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-if ( ! defined( 'CF7_SMTP_SETTINGS' ) || defined( 'CF7_SMTP_USER_PASS' ) ) {
+
+if ( ! defined( 'CF7_SMTP_HOST' ) ) {
+	define( 'CF7_SMTP_HOST', null );
+}
+if ( ! defined( 'CF7_SMTP_PORT' ) ) {
+	define( 'CF7_SMTP_PORT', null );
+}
+if ( ! defined( 'CF7_SMTP_AUTH' ) ) {
+	define( 'CF7_SMTP_AUTH', null );
+}
+if ( ! defined( 'CF7_SMTP_USER_NAME' ) ) {
+	define( 'CF7_SMTP_USER_NAME', null );
+}
+if ( ! defined( 'CF7_SMTP_USER_PASS' ) ) {
+	define( 'CF7_SMTP_USER_PASS', null );
+}
+if ( ! defined( 'CF7_SMTP_FROM_MAIL' ) ) {
+	define( 'CF7_SMTP_FROM_MAIL', null );
+}
+if ( ! defined( 'CF7_SMTP_FROM_NAME' ) ) {
+	define( 'CF7_SMTP_FROM_NAME', null );
+}
+
+if ( ! defined( 'CF7_SMTP_SETTINGS' ) ) {
 	define(
 		'CF7_SMTP_SETTINGS',
 		array(
-			'host'      => defined( 'CF7_SMTP_HOST' ) ? CF7_SMTP_HOST : null,
-			'port'      => defined( 'CF7_SMTP_PORT' ) ? CF7_SMTP_PORT : null,
-			'auth'      => defined( 'CF7_SMTP_AUTH' ) ? CF7_SMTP_AUTH : null,
-			'user_name' => defined( 'CF7_SMTP_USER_NAME' ) ? CF7_SMTP_USER_NAME : null,
-			'user_pass' => defined( 'CF7_SMTP_USER_PASS' ) ? CF7_SMTP_USER_PASS : null,
-			'from_mail' => defined( 'CF7_SMTP_FROM_MAIL' ) ? CF7_SMTP_FROM_MAIL : null,
-			'from_name' => defined( 'CF7_SMTP_FROM_NAME' ) ? CF7_SMTP_FROM_NAME : null,
+			'host'      => CF7_SMTP_HOST,
+			'port'      => CF7_SMTP_PORT,
+			'auth'      => CF7_SMTP_AUTH,
+			'user_name' => CF7_SMTP_USER_NAME,
+			'user_pass' => CF7_SMTP_USER_PASS,
+			'from_mail' => CF7_SMTP_FROM_MAIL,
+			'from_name' => CF7_SMTP_FROM_NAME,
 		)
 	);
 }
@@ -53,17 +79,17 @@ if ( ! defined( 'CF7_SMTP_SETTINGS' ) || defined( 'CF7_SMTP_USER_PASS' ) ) {
 if ( version_compare( PHP_VERSION, CF7_SMTP_MIN_PHP_VERSION, '<=' ) ) {
 	add_action(
 		'admin_init',
-		static function() {
+		static function () {
 			deactivate_plugins( plugin_basename( __FILE__ ) );
 		}
 	);
 	add_action(
 		'admin_notices',
-		static function() {
+		static function () {
 			echo wp_kses_post(
 				sprintf(
 					'<div class="notice notice-error"><p>%s</p></div>',
-					esc_html__( 'SMTP for Contact Form 7 requires PHP 7.1 or newer.', CF7_SMTP_TEXTDOMAIN )
+					esc_html__( 'SMTP for Contact Form 7 requires PHP 7.1 or newer.', 'cf7-smtp' )
 				)
 			);
 		}
@@ -77,21 +103,58 @@ $cf7_smtp_libraries = require CF7_SMTP_PLUGIN_ROOT . 'vendor/autoload.php'; //ph
 
 require_once CF7_SMTP_PLUGIN_ROOT . 'functions/functions.php';
 
-// TODO: Add your new plugin [on the wiki](https://github.com/WPBP/WordPress-Plugin-Boilerplate-Powered/wiki/Plugin-made-with-this-Boilerplate).
-
+/**
+ * If the plugin is not being installed then
+ * register the activation and deactivation hooks
+ * and load the plugin
+ */
 if ( ! wp_installing() ) {
 
 	/* It's a hook that is called when the plugin is activated. */
-	register_activation_hook( CF7_SMTP_TEXTDOMAIN . '/' . CF7_SMTP_TEXTDOMAIN . '.php', array( new \cf7_smtp\Backend\ActDeact(), 'activate' ) );
+	register_activation_hook( 'cf7-smtp/cf7-smtp.php', array( new \cf7_smtp\Backend\ActDeact(), 'activate' ) );
 
 	/* It's a hook that is called when the plugin is deactivated. */
-	register_deactivation_hook( CF7_SMTP_TEXTDOMAIN . '/' . CF7_SMTP_TEXTDOMAIN . '.php', array( new \cf7_smtp\Backend\ActDeact(), 'deactivate' ) );
+	register_deactivation_hook( 'cf7-smtp/cf7-smtp.php', array( new \cf7_smtp\Backend\ActDeact(), 'deactivate' ) );
 
 	/* It's a hook that is called when all plugins are loaded. */
 	add_action(
 		'plugins_loaded',
 		static function () use ( $cf7_smtp_libraries ) {
-			new \cf7_smtp\Engine\Initialize( $cf7_smtp_libraries );
+			$cf7_smtp_libraries = require CF7_SMTP_PLUGIN_ROOT . 'vendor/autoload.php';
+			try {
+				new \cf7_smtp\Engine\Initialize( $cf7_smtp_libraries );
+			} catch ( Exception $e ) {
+				return;
+			}
+
+			if ( ! class_exists( 'WPCF7_Service' ) ) {
+				return;
+			}
 		}
+	);
+
+	add_action(
+		'init',
+		static function () {
+			$file = path_join( CF7_SMTP_PLUGIN_ROOT, 'integration/integration.php' );
+
+			if ( file_exists( $file ) ) {
+				include_once $file;
+			}
+		}
+	);
+}
+
+/**
+ * call the integration action to mount our plugin as a component
+ * into the intefration page
+ */
+add_action( 'wpcf7_init', 'cf7_smtp_register_service', 1, 0 );
+function cf7_smtp_register_service() {
+	$integration = WPCF7_Integration::get_instance();
+	$integration->add_category( 'email_services', 'Email Services' );
+	$integration->add_service(
+		'cf7-smtp',
+		cf7_smtp\Integration\Service::get_instance()
 	);
 }

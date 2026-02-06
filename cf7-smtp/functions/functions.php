@@ -17,7 +17,19 @@
  * @return array
  */
 function cf7_smtp_get_settings(): array {
-	return apply_filters( 'cf7_smtp_get_settings', get_option( CF7_SMTP_TEXTDOMAIN . '-options', array() ) );
+	return apply_filters( 'cf7_smtp_get_settings', get_option( 'cf7-smtp-options', array() ) );
+}
+
+/**
+ * It updates the plugin's settings
+ *
+ * @param array $options An array of options to update.
+ *
+ * @return bool success or not
+ */
+function cf7_smtp_update_settings( array $options ): bool {
+	$new_options = array_merge( cf7_smtp_get_settings(), $options );
+	return update_option( 'cf7-smtp-options', $new_options );
 }
 
 /**
@@ -70,4 +82,13 @@ function cf7_smtp_log( $log_data ) {
 	}
 }
 
-
+/**
+ * It prints the password placeholders, the number of * is equal to the length of the password
+ *
+ * @param string $pass The password to print.
+ *
+ * @return string The password with * placeholders.
+ */
+function cf7_smtp_print_pass_placeholders( string $pass ) {
+	return '"' . str_repeat( '*', strlen( $pass ) ) . '"';
+}

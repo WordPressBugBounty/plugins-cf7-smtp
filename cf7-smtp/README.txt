@@ -1,10 +1,11 @@
-=== SMTP for Contact From 7 ===
-Contributors: codekraft
-Tags: smtp, mail, wp mail smtp, mail template, phpmailer, contact form 7
+=== SMTP for Contact Form 7 ===
+Contributors: codekraft, gardenboi
+Tags: smtp, mail, wp mail, mail template, contact form 7
 Requires PHP: 7.1
 Requires at least: 5.5
-Tested up to: 6.1
-Stable tag: 0.0.1
+Tested up to: 6.9
+Stable tag: 1.0.0
+Requires plugins: Contact Form 7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,9 +19,9 @@ Anyway you can avoid any problems by using an external SMTP server and sending m
 
 = Additional features =
 
-* ✅ Live testing: a module for testing e-mail settings with the Rest-Api (that avoid to reload the page for this kind of test). The entire output of the php mailer will be captured, which will be useful in case of configuration errors or the wrong parameter when is possible.
-* ✅ Customised template: wrap cf7 emails with a template, so your emails will have a less textual and a little prettier format! The template can be customised for each form and internationalized.
-* ✅ Automated Reports: choose when and what email you want to receive the report and I will send you a summary of sent and failed emails
+✅ **Live testing:** a module for testing e-mail settings with the Rest-Api (that avoid to reload the page for this kind of test). The entire output of the php mailer will be captured, which will be useful in case of configuration errors or to get the wrong parameter when is possible.
+✅ **Customised template:** wrap cf7 emails with a template, so your emails will have a less textual and a little prettier format! The template can be customised for each form and internationalized.
+✅ **Automated Reports:** choose when and what email you want to receive the report and I will send you a summary of sent and failed emails
 
 This plugin is ads free and I don't want to try to sell you any pro version! If you want to contribute, there are many ways to do so, from simple suggestions and bug reports to translating and contributing code. See below how to do it!
 
@@ -120,6 +121,15 @@ By contributing, you agree that your contributions will be licensed under its GP
 4. Activate the plugin in the Plugin dashboard
 
 == Changelog ==
+
+= 1.0.0 =
+* Cleaner code, updated dependencies
+* @DAnn2012 has contributed fixin a bug in a translation string
+
+= 0.0.2 =
+* The configuration panel has been integrated with Contact Form 7 forms
+* The widget which shows sent and unsent emails is now in the WordPress dashboard
+* Fix an issue about password being reset when saving the plugin options
 
 = 0.0.1 =
 * First Release

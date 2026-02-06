@@ -7,6 +7,7 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'cf7_smtp\\Rest\\' => array($baseDir . '/rest'),
+    'cf7_smtp\\Integration\\' => array($baseDir . '/integration'),
     'cf7_smtp\\Engine\\' => array($baseDir . '/engine'),
     'cf7_smtp\\Core\\' => array($baseDir . '/core'),
     'cf7_smtp\\Backend\\' => array($baseDir . '/backend'),

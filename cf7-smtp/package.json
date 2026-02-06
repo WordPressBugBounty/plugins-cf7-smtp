@@ -1,0 +1,70 @@
+{
+    "name": "cf7-smtp",
+    "version": "1.0.0",
+    "description": "",
+    "author": "Erik Golinelli <erik@codekraft.it>",
+    "files": [
+        "backend/*",
+        "build/*",
+        "core/*",
+        "engine/*",
+        "functions/*",
+        "rest/*",
+        "templates/*",
+        "vendor/*",
+        "integration/*",
+        "public/*",
+        "index.php",
+        "cf7-smtp.php",
+        "languages/cf7-smtp.pot",
+        "README.txt",
+        "LICENSE.txt",
+        "uninstall.php",
+        "composer.json"
+    ],
+    "scripts": {
+        "start": "wp-scripts start",
+        "build": "wp-scripts build",
+        "plugin-zip": "wp-scripts plugin-zip",
+        "preplugin-zip": "composer install --no-dev && composer dump-autoload --optimize && wp-scripts build && npm run make-pot",
+        "lint:css": "wp-scripts lint-style ./src/**/*.scss --fix",
+        "lint:js": "wp-scripts lint-js ./src/**/*.js --fix",
+        "packages-update": "wp-scripts packages-update",
+        "wp-env:start": "wp-env start --xdebug",
+        "wp-env:stop": "wp-env stop",
+        "wp-env:destroy": "wp-env destroy",
+        "make-pot": "npx makepot",
+        "postinstall": "npm run build"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.23.9",
+        "@wordpress/api-fetch": "^7.23.0",
+        "@wordpress/env": "^10.31.0",
+        "@wordpress/i18n": "^6.9.0",
+        "@wordpress/scripts": "^31.1.0",
+        "chart.js": "^4.5.1"
+    },
+    "engines": {
+        "node": ">=14.0.0",
+        "npm": ">=6.9.0"
+    },
+    "eslintConfig": {
+        "extends": [
+            "plugin:@wordpress/eslint-plugin/recommended"
+        ],
+        "globals": {
+            "jQuery": true,
+            "$": true
+        }
+    },
+    "browserslist": [
+        "extends @wordpress/browserslist-config"
+    ],
+    "stylelint": {
+        "extends": [
+            "@wordpress/stylelint-config",
+            "@wordpress/stylelint-config/scss"
+        ]
+    },
+    "prettier": "@wordpress/prettier-config"
+}

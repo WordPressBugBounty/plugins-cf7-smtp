@@ -4,12 +4,13 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit83279304f1aefebd51b946980bdf3312
+class ComposerStaticInita5fb3f44999afb17637b8c233e18d664
 {
     public static $prefixLengthsPsr4 = array (
         'c' => 
         array (
             'cf7_smtp\\Rest\\' => 14,
+            'cf7_smtp\\Integration\\' => 21,
             'cf7_smtp\\Engine\\' => 16,
             'cf7_smtp\\Core\\' => 14,
             'cf7_smtp\\Backend\\' => 17,
@@ -24,6 +25,10 @@ class ComposerStaticInit83279304f1aefebd51b946980bdf3312
         'cf7_smtp\\Rest\\' => 
         array (
             0 => __DIR__ . '/../..' . '/rest',
+        ),
+        'cf7_smtp\\Integration\\' => 
+        array (
+            0 => __DIR__ . '/../..' . '/integration',
         ),
         'cf7_smtp\\Engine\\' => 
         array (
@@ -52,20 +57,23 @@ class ComposerStaticInit83279304f1aefebd51b946980bdf3312
         'cf7_smtp\\Backend\\Notices' => __DIR__ . '/../..' . '/backend/Notices.php',
         'cf7_smtp\\Backend\\Settings_Form' => __DIR__ . '/../..' . '/backend/Settings_Form.php',
         'cf7_smtp\\Backend\\Settings_Page' => __DIR__ . '/../..' . '/backend/Settings_Page.php',
+        'cf7_smtp\\Backend\\Widget' => __DIR__ . '/../..' . '/backend/Widget.php',
         'cf7_smtp\\Core\\Cron' => __DIR__ . '/../..' . '/core/Cron.php',
         'cf7_smtp\\Core\\Mailer' => __DIR__ . '/../..' . '/core/Mailer.php',
+        'cf7_smtp\\Core\\Stats' => __DIR__ . '/../..' . '/core/Stats.php',
         'cf7_smtp\\Engine\\Base' => __DIR__ . '/../..' . '/engine/Base.php',
         'cf7_smtp\\Engine\\Context' => __DIR__ . '/../..' . '/engine/Context.php',
         'cf7_smtp\\Engine\\Initialize' => __DIR__ . '/../..' . '/engine/Initialize.php',
-        'cf7_smtp\\Rest\\Rest_SendMail' => __DIR__ . '/../..' . '/rest/Rest_SendMail.php',
+        'cf7_smtp\\Integration\\Service' => __DIR__ . '/../..' . '/integration/Service.php',
+        'cf7_smtp\\Rest\\Api' => __DIR__ . '/../..' . '/rest/Api.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit83279304f1aefebd51b946980bdf3312::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit83279304f1aefebd51b946980bdf3312::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit83279304f1aefebd51b946980bdf3312::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInita5fb3f44999afb17637b8c233e18d664::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInita5fb3f44999afb17637b8c233e18d664::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInita5fb3f44999afb17637b8c233e18d664::$classMap;
 
         }, null, ClassLoader::class);
     }

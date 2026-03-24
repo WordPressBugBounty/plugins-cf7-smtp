@@ -11,5 +11,11 @@ return array(
     'cf7_smtp\\Engine\\' => array($baseDir . '/engine'),
     'cf7_smtp\\Core\\' => array($baseDir . '/core'),
     'cf7_smtp\\Backend\\' => array($baseDir . '/backend'),
+    'Psr\\Http\\Message\\' => array($vendorDir . '/psr/http-factory/src', $vendorDir . '/psr/http-message/src'),
+    'Psr\\Http\\Client\\' => array($vendorDir . '/psr/http-client/src'),
+    'League\\OAuth2\\Client\\' => array($vendorDir . '/league/oauth2-google/src', $vendorDir . '/league/oauth2-client/src'),
     'Inpsyde\\' => array($vendorDir . '/inpsyde/wp-context/src'),
+    'GuzzleHttp\\Psr7\\' => array($vendorDir . '/guzzlehttp/psr7/src'),
+    'GuzzleHttp\\Promise\\' => array($vendorDir . '/guzzlehttp/promises/src'),
+    'GuzzleHttp\\' => array($vendorDir . '/guzzlehttp/guzzle/src'),
 );

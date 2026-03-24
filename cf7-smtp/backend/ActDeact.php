@@ -1,5 +1,4 @@
 <?php
-
 /**
  * CF7_SMTP actiovation / deactivation class
  *
@@ -125,22 +124,35 @@ class ActDeact extends Base {
 		$current_website = wp_parse_url( implode( '.', array_slice( explode( ',', get_bloginfo( 'url' ) ), -2, 2, true ) ), PHP_URL_HOST );
 
 		return array(
-			'version'         => 1,
-			'enabled'         => true,
-			'custom_template' => false,
-			'report_every'    => false,
-			'report_to'       => wp_get_current_user()->user_email ?? '',
-			'preset'          => 'custom',
-			'host'            => $current_website,
-			'port'            => '25',
-			'auth'            => '',
-			'replyTo'         => false,
-			'insecure'        => false,
-			'user_name'       => '',
-			'user_pass'       => '',
-			'from_mail'       => '',
-			'from_name'       => '',
-			'log_retain_days' => 30,
+			'version'                          => defined( 'CF7_SMTP_VERSION' ) ? CF7_SMTP_VERSION : '1.0.0',
+			'enabled'                          => true,
+			'custom_template'                  => false,
+			'report_every'                     => false,
+			'report_to'                        => wp_get_current_user()->user_email ?? '',
+			'preset'                           => 'custom',
+			'host'                             => $current_website,
+			'port'                             => '25',
+			'auth'                             => '',
+			'replyTo'                          => false,
+			'insecure'                         => false,
+			'user_name'                        => '',
+			'user_pass'                        => '',
+			'from_mail'                        => '',
+			'from_name'                        => '',
+			'log_retain_days'                  => 30,
+			// OAuth2 settings.
+			'auth_type'                        => 'basic',
+			'auth_method'                      => 'wp',
+			// basic or oauth2.
+							'oauth2_provider'  => '',
+			// gmail, office365.
+							'oauth2_client_id' => '',
+			'oauth2_client_secret'             => '',
+			'oauth2_access_token'              => '',
+			'oauth2_refresh_token'             => '',
+			'oauth2_expires'                   => '',
+			'oauth2_user_email'                => '',
+			'oauth2_connected_at'              => '',
 		);
 	}
 
@@ -153,11 +165,11 @@ class ActDeact extends Base {
 
 		$default_cf7_smtp_options = self::default_options();
 
-		$options = get_option( 'cf7-smtp' . '-options' );
+		$options = get_option( 'cf7-smtp-options' );
 
 		if ( empty( $options ) || $reset_options ) {
 			/* if the plugin options are missing Init the plugin with the default option + the default settings */
-			add_option( 'cf7-smtp' . '-options', $default_cf7_smtp_options );
+			add_option( 'cf7-smtp-options', $default_cf7_smtp_options );
 		} else {
 			/* update the plugin options but add the new options automatically */
 			if ( isset( $options['cf7_smtp_version'] ) ) {
@@ -167,7 +179,43 @@ class ActDeact extends Base {
 			/* merge previous options with the updated copy keeping the already selected option as default */
 			$new_options = array_merge( $default_cf7_smtp_options, $options );
 
-			update_option( 'cf7-smtp' . '-options', $new_options );
+			/**
+			 * Legacy v1.0.0 users:
+			 * v1.0.0 did not have 'auth_method'. If it's missing, it means the user
+			 * was previously using the standard SMTP functionality. We force
+			 * 'smtp' as the method to maintain their existing configuration,
+			 * instead of letting it fall back to the new 'wp' (WordPress default).
+			 */
+			if ( ! isset( $options['auth_method'] ) || ( isset( $options['enabled'] ) && true === $options['enabled'] ) ) {
+				$new_options['auth_method'] = 'smtp';
+			}
+
+			/* Always stamp the current plugin version so maybe_upgrade() knows the migration is done */
+			$new_options['version'] = defined( 'CF7_SMTP_VERSION' ) ? CF7_SMTP_VERSION : $default_cf7_smtp_options['version'];
+
+			update_option( 'cf7-smtp-options', $new_options );
+		}
+	}
+
+	/**
+	 * Runs after every page load (hooked to plugins_loaded) and migrates stored
+	 * options to the current schema whenever the plugin has been updated without
+	 * a manual deactivate / activate cycle (e.g. auto-updates via WP dashboard).
+	 *
+	 * The version stored in the option row is compared against CF7_SMTP_VERSION;
+	 * if they differ, update_options() merges the current defaults into the stored
+	 * options and stamps the new version so the migration only runs once.
+	 *
+	 * @since 1.1.0
+	 * @return void
+	 */
+	public static function maybe_upgrade() {
+		$options         = get_option( 'cf7-smtp-options', array() );
+		$stored_version  = $options['version'] ?? 0;
+		$current_version = defined( 'CF7_SMTP_VERSION' ) ? CF7_SMTP_VERSION : '0';
+
+		if ( version_compare( (string) $stored_version, $current_version, '<' ) ) {
+			self::update_options();
 		}
 	}
 

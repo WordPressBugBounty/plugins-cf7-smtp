@@ -6,7 +6,7 @@
  * Plugin Name:     SMTP for Contact Form 7
  * Plugin URI:      https://wordpress.org/plugins/cf7-smtp
  * Description:     A trustworthy SMTP plugin for Contact Form 7. Simple and useful.
- * Version:         1.0.0
+ * Version:         1.1.0
  * Author:          codekraft
  * Contributors:    gardenboi
  * Author URI:      https://modul-r.codekraft.it/
@@ -17,7 +17,6 @@
  * Domain Path:     /languages
  * Requires PHP:    7.1
  * Requires Plugins: contact-form-7
- * WordPress-Plugin-Boilerplate-Powered: v3.3.0
  *
  * @package   cf7_smtp
  * @author    Erik Golinelli <erik@codekraft.it>
@@ -33,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'CF7_SMTP_NAME', 'Contact Form 7 - SMTP' );
 define( 'CF7_SMTP_MIN_PHP_VERSION', '7.1' );
-define( 'CF7_SMTP_VERSION', '1.0.0' );
+define( 'CF7_SMTP_VERSION', '1.1.0' );
 
 define( 'CF7_SMTP_PLUGIN_ROOT', plugin_dir_path( __FILE__ ) );
 define( 'CF7_SMTP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -97,10 +96,10 @@ if ( version_compare( PHP_VERSION, CF7_SMTP_MIN_PHP_VERSION, '<=' ) ) {
 
 	// Return early to prevent loading the plugin.
 	return;
-}
+}//end if
 
-$cf7_smtp_libraries = require CF7_SMTP_PLUGIN_ROOT . 'vendor/autoload.php'; //phpcs:ignore
-
+// Load Composer Autoloader and Functions once
+$cf7_smtp_libraries = require_once CF7_SMTP_PLUGIN_ROOT . 'vendor/autoload.php';
 require_once CF7_SMTP_PLUGIN_ROOT . 'functions/functions.php';
 
 /**
@@ -110,46 +109,61 @@ require_once CF7_SMTP_PLUGIN_ROOT . 'functions/functions.php';
  */
 if ( ! wp_installing() ) {
 
-	/* It's a hook that is called when the plugin is activated. */
-	register_activation_hook( 'cf7-smtp/cf7-smtp.php', array( new \cf7_smtp\Backend\ActDeact(), 'activate' ) );
+	/* It's a hook that is called when the plugin is activated or deactivated. */
+	register_activation_hook( __FILE__, array( new \cf7_smtp\Backend\ActDeact(), 'activate' ) );
+	register_deactivation_hook( __FILE__, array( new \cf7_smtp\Backend\ActDeact(), 'deactivate' ) );
 
-	/* It's a hook that is called when the plugin is deactivated. */
-	register_deactivation_hook( 'cf7-smtp/cf7-smtp.php', array( new \cf7_smtp\Backend\ActDeact(), 'deactivate' ) );
-
-	/* It's a hook that is called when all plugins are loaded. */
+	/* Initialize the plugin once all plugins are loaded. */
 	add_action(
 		'plugins_loaded',
+		static function () {
+			/**
+			 * Run the migration safely once WP is ready.
+			 * This handles the case where the plugin was updated via WordPress auto-update
+			 * (which does NOT fire the activation hook) so new option keys are added
+			 * automatically on the very next request after an update.
+			 */
+			\cf7_smtp\Backend\ActDeact::maybe_upgrade();
+		}
+	);
+
+	/* Initialize the Engine after ensuring CF7 is present */
+	add_action(
+		'init',
 		static function () use ( $cf7_smtp_libraries ) {
-			$cf7_smtp_libraries = require CF7_SMTP_PLUGIN_ROOT . 'vendor/autoload.php';
+			// Bail if Contact Form 7 isn't active.
+			if ( ! class_exists( 'WPCF7_Service' ) ) {
+				return;
+			}
+
+			// Initialize the Engine.
 			try {
 				new \cf7_smtp\Engine\Initialize( $cf7_smtp_libraries );
 			} catch ( Exception $e ) {
 				return;
 			}
 
-			if ( ! class_exists( 'WPCF7_Service' ) ) {
-				return;
-			}
-		}
-	);
-
-	add_action(
-		'init',
-		static function () {
 			$file = path_join( CF7_SMTP_PLUGIN_ROOT, 'integration/integration.php' );
 
 			if ( file_exists( $file ) ) {
 				include_once $file;
 			}
-		}
+		},
+		11
 	);
-}
+}//end if
 
 /**
- * call the integration action to mount our plugin as a component
+ * Call the integration action to mount our plugin as a component
  * into the intefration page
  */
 add_action( 'wpcf7_init', 'cf7_smtp_register_service', 1, 0 );
+
+/**
+ * Register the SMTP service with Contact Form 7
+ *
+ * @return void
+ */
 function cf7_smtp_register_service() {
 	$integration = WPCF7_Integration::get_instance();
 	$integration->add_category( 'email_services', 'Email Services' );

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * CF7_SMTP MAILER
  *
@@ -39,6 +38,16 @@ class Mailer extends Base {
 	 */
 	private array $default_headers;
 
+	/**
+	 * Flag to check if the email is from CF7.
+	 *
+	 * @var bool
+	 */
+	private static bool $is_cf7_mail = false;
+
+	/**
+	 * Constructor
+	 */
 	public function __construct() {
 		parent::initialize();
 
@@ -65,10 +74,15 @@ class Mailer extends Base {
 	 */
 	public function initialize() {
 		if ( ! empty( $this->options['enabled'] || ! empty( get_transient( 'cf7_smtp_testing' ) ) ) ) {
-			\add_action( 'phpmailer_init', array( $this, 'smtp_overrides' ), 11 );
+			\add_action( 'phpmailer_init', array( $this, 'smtp_overrides' ), 99999 );
+			\add_action( 'wpcf7_before_send_mail', array( $this, 'set_cf7_mail_flag' ) );
 		}
 
-		if ( ! empty( $this->options['custom_template'] ) ) {
+		// Check if any form templates are configured or if legacy global setting is enabled
+		$has_form_templates = ! empty( $this->options['form_templates'] ) && is_array( $this->options['form_templates'] );
+		$has_legacy_setting = ! empty( $this->options['custom_template'] );
+		
+		if ( $has_form_templates || $has_legacy_setting ) {
 			\add_action( 'phpmailer_init', array( $this, 'cf7_smtp_apply_template' ), 10 );
 		}
 
@@ -77,6 +91,15 @@ class Mailer extends Base {
 		\add_action( 'wp_mail_succeeded', array( $this, 'cf7_smtp_wp_mail_log' ) );
 		\add_action( 'wp_mail_failed', array( $this, 'cf7_smtp_wp_mail_catch_errors' ) );
 		\add_filter( 'wpcf7_mail_components', array( $this, 'cf7_smtp_email_style' ), 99, 3 );
+	}
+
+	/**
+	 * Set the flag to true if the email is from CF7.
+	 *
+	 * @return void
+	 */
+	public function set_cf7_mail_flag() {
+		self::$is_cf7_mail = true;
 	}
 
 	/**
@@ -239,14 +262,31 @@ class Mailer extends Base {
 	 */
 	private function get_template_path( string $template_name, int $id, string $lang ): string {
 		$theme_custom_dir    = 'cf7-smtp/';
+		$theme_templates_dir = 'templates/cf7-smtp/';
 		$plugin_template_dir = CF7_SMTP_PLUGIN_ROOT . 'templates/';
 
-		// Look in theme directories
+		// For custom templates, look in theme directory first
+		if ( $template_name !== 'default' ) {
+			// Check for custom template in theme folder (PHP files) - multiple locations
+			$template = locate_template(
+				array(
+					$theme_custom_dir . "{$template_name}.php",
+					$theme_templates_dir . "{$template_name}.php",
+				)
+			);
+			
+			if ( ! empty( $template ) ) {
+				return apply_filters( 'cf7_smtp_mail_template', $template, $template_name, $id, $lang, 'cf7-smtp' );
+			}
+		}
+
+		// Look for default templates (HTML files) in theme directories
 		if ( $id ) {
 			$template = locate_template(
 				array(
 					"{$template_name}-{$id}.html",
 					$theme_custom_dir . "{$template_name}-{$id}.html",
+					$theme_templates_dir . "{$template_name}-{$id}.html",
 				)
 			);
 		} else {
@@ -254,18 +294,21 @@ class Mailer extends Base {
 				array(
 					"{$template_name}.html",
 					$theme_custom_dir . "{$template_name}.html",
+					$theme_templates_dir . "{$template_name}.html",
 				)
 			);
 		}
 
 		// Fallback to plugin templates
-		if ( ! empty( $template ) && $id ) {
-			$template = $plugin_template_dir . "{$template_name}-{$id}.html";
-		}
+		if ( empty( $template ) ) {
+			if ( $id ) {
+				$template = $plugin_template_dir . "{$template_name}-{$id}.html";
+			}
 
-		/* Get default template_name.php */
-		if ( ! empty( $template ) && file_exists( $plugin_template_dir . "{$template_name}.html" ) ) {
-			$template = $plugin_template_dir . "{$template_name}.html";
+			/* Get default template_name.php */
+			if ( empty( $template ) || ! file_exists( $template ) ) {
+				$template = $plugin_template_dir . "{$template_name}.html";
+			}
 		}
 
 		return apply_filters( 'cf7_smtp_mail_template', $template, $template_name, $id, $lang, 'cf7-smtp' );
@@ -296,20 +339,60 @@ class Mailer extends Base {
 	 * @return array The modified components.
 	 */
 	public function cf7_smtp_email_style( array $components, WPCF7_ContactForm $contact_form, WPCF7_Mail $mail ): array {
-		if ( empty( $this->options['custom_template'] ) || empty( $components['body'] ) ) {
+		if ( empty( $components['body'] ) ) {
 			return $components;
 		}
 
+		// Get form-specific template preference
+		$form_id = $contact_form->id();
+		$template_preference = 'default'; // Default fallback
+		
+		if ( isset( $this->options['form_templates'][ $form_id ] ) ) {
+			$template_preference = $this->options['form_templates'][ $form_id ];
+		} elseif ( ! empty( $this->options['custom_template'] ) ) {
+			// Fallback to old global setting for backward compatibility
+			$template_preference = 'default';
+		} else {
+			// No template preference set, return unchanged
+			return $components;
+		}
+
+		// If 'none' is selected, don't apply any template
+		if ( $template_preference === 'none' ) {
+			return $components;
+		}
+
+		// Check if the source email from CF7 is set to HTML
+		$mail_properties = $contact_form->prop( 'mail' );
+		$is_html = ! empty( $mail_properties['use_html'] );
+
+		// Apply the nl2br ONLY if it's NOT already HTML to convert newlines to HTML line breaks
 		$email_data = array(
-			'body'     => nl2br( $components['body'] ),
+			'body'     => $is_html ? $components['body'] : nl2br( $components['body'] ),
 			'subject'  => $components['subject'],
 			'language' => $contact_form->locale(),
 		);
 
 		$email_data = apply_filters( 'cf7_smtp_mail_components', $email_data, $contact_form, $mail );
-		$template   = $this->cf7_smtp_get_email_style( 'default', $contact_form->id(), $contact_form->locale() );
+		$template   = $this->cf7_smtp_get_email_style( $template_preference, $contact_form->id(), $contact_form->locale() );
+
+		// If no template found, return unchanged
+		if ( empty( $template ) ) {
+			return $components;
+		}
 
 		$components['body'] = $this->cf7_smtp_form_template( $email_data, $template );
+
+		// Forces header Content-Type to be HTML if using custom template
+		if ( strpos( $components['headers'], 'Content-Type:' ) === false ) {
+			$components['headers'] .= "\nContent-Type: text/html; charset=\"" . get_option( 'blog_charset' ) . "\"\n";
+		} else {
+			$components['headers'] = preg_replace(
+				'/Content-Type: text\/plain/i',
+				'Content-Type: text/html',
+				$components['headers']
+			);
+		}
 
 		return $components;
 	}
@@ -320,9 +403,9 @@ class Mailer extends Base {
 	 * @param PHPMailer\PHPMailer $phpmailer The PHPMailer object.
 	 */
 	public function cf7_smtp_apply_template( PHPMailer\PHPMailer $phpmailer ) {
-		if ( ! empty( $this->options['custom_template'] ) && preg_match( '/<html /mi', $phpmailer->Body ) ) {
-			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			$phpmailer->isHTML();
+		// If it contains HTML (like <br>, <div>, <html>), force PHPMailer to use HTML
+		if ( preg_match( '/<(br|div|html|body|table|p)/mi', $phpmailer->Body ) ) {
+			$phpmailer->isHTML( true );
 		}
 	}
 
@@ -398,7 +481,7 @@ class Mailer extends Base {
 			return $data;
 		}
 
-		$template_path = CF7_SMTP_PLUGIN_ROOT . 'templates/' . $template_file;
+		$template_path = sprintf( '%stemplates/%s', CF7_SMTP_PLUGIN_ROOT, $template_file );
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		$template = file_exists( $template_path ) ? file_get_contents( $template_path ) : '';
 
@@ -435,7 +518,7 @@ class Mailer extends Base {
 		);
 
 		// Fallback to plain text if no template
-		if ( empty( $this->options['template'] ) ) {
+		if ( empty( $this->options['custom_template'] ) ) {
 			$mail_data['body'] = sprintf( "%s %s\r\n\r\n%s", $subject, get_bloginfo( 'name' ), $report );
 		}
 
@@ -527,6 +610,74 @@ class Mailer extends Base {
 	}
 
 	/**
+	 * Configure PHPMailer for OAuth2/XOAUTH2 authentication
+	 *
+	 * @param PHPMailer\PHPMailer $phpmailer The PHPMailer instance.
+	 * @return bool Whether OAuth2 was configured successfully.
+	 */
+	private function configure_oauth2_auth( PHPMailer\PHPMailer $phpmailer ): bool {
+		$oauth2_handler = new OAuth2_Handler();
+
+		if ( ! $oauth2_handler->is_connected() ) {
+			cf7_smtp_log( 'OAuth2 not connected. Falling back to basic authentication.' );
+			return false;
+		}
+
+		// Get a valid access token (will refresh if necessary)
+		$access_token = $oauth2_handler->get_access_token();
+		if ( is_wp_error( $access_token ) || empty( $access_token ) ) {
+			cf7_smtp_log( 'Failed to get OAuth2 access token: ' . ( is_wp_error( $access_token ) ? $access_token->get_error_message() : 'Token is empty' ) );
+			return false;
+		}
+
+		$status     = $oauth2_handler->get_status();
+		$user_email = $status['user_email'] ?? '';
+
+		if ( empty( $user_email ) ) {
+			cf7_smtp_log( 'OAuth2 user email not found.' );
+			return false;
+		}
+
+		// Override SMTP host/port/encryption to match the OAuth2 provider's SMTP server.
+		// OAuth2 tokens are provider-specific and ONLY work with the provider's SMTP server.
+		$provider_key    = $oauth2_handler->get_current_provider();
+		$provider_config = $provider_key ? $oauth2_handler->get_provider_config( $provider_key ) : null;
+
+		if ( ! empty( $provider_config['host'] ) ) {
+			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$phpmailer->Host = $provider_config['host'];
+			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$phpmailer->Port = $provider_config['port'] ?? 587;
+			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$phpmailer->SMTPSecure = $provider_config['encryption'] ?? 'tls';
+
+			cf7_smtp_log( 'OAuth2: Overriding SMTP host to ' . $provider_config['host'] . ':' . ( $provider_config['port'] ?? 587 ) . ' (' . ( $provider_config['encryption'] ?? 'tls' ) . ')' );
+		}
+
+		// Configure PHPMailer for XOAUTH2
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		$phpmailer->SMTPAuth = true;
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		$phpmailer->AuthType = 'XOAUTH2';
+
+		// Load the OAuthProvider class (not autoloaded as it's a global class).
+		require_once __DIR__ . '/OAuthProvider.php';
+
+		$oauth_provider = new \cf7_smtp\Core\OAuthProvider(
+			$user_email,
+			$access_token,
+			$oauth2_handler->get_provider_instance(),
+			cf7_smtp_decrypt( $status['refresh_token'] ?? '' )
+		);
+
+		// Set the OAuth provider callback
+		$phpmailer->setOAuth( $oauth_provider );
+
+		cf7_smtp_log( 'OAuth2/XOAUTH2 authentication configured for: ' . $user_email );
+		return true;
+	}
+
+	/**
 	 * Configure PHPMailer port
 	 *
 	 * @param PHPMailer\PHPMailer $phpmailer The PHPMailer instance.
@@ -589,18 +740,35 @@ class Mailer extends Base {
 	 * @param string              $from_mail From email address.
 	 * @param string              $from_name From name.
 	 */
+	/**
+	 * Configure PHPMailer From address
+	 *
+	 * @param PHPMailer\PHPMailer $phpmailer The PHPMailer instance.
+	 * @param string              $from_mail From email address.
+	 * @param string              $from_name From name.
+	 */
 	private function configure_from_address( PHPMailer\PHPMailer $phpmailer, string $from_mail, string $from_name ) {
-		try {
-			$phpmailer->setFrom( $from_mail, $from_name, false );
-			$phpmailer->Sender = $from_mail;
+		// FIX: If the From Mail setting is empty, do NOT override.
+		// This allows Contact Form 7 specific settings to persist.
+		if ( empty( $from_mail ) ) {
 			return;
+		}
+
+		try {
+			// Validate before setting to avoid exceptions
+			if ( is_email( $from_mail ) ) {
+				$phpmailer->setFrom( $from_mail, $from_name, false );
+				$phpmailer->Sender = $from_mail;
+				return;
+			}
 		} catch ( \Exception $e ) {
 			cf7_smtp_log( 'Failed to set From and Sender: ' . $e->getMessage() );
 		}
 
-		// Use WordPress default if from_mail is invalid
+		// Only fallback if the user PROVIDED a value but it was invalid/failed.
+		// If we are here, it means $from_mail was not empty but failed validation/setting.
 		$default_from = get_option( 'admin_email' );
-		cf7_smtp_log( "From mail empty/invalid. Fallback to admin_email: $default_from" );
+		cf7_smtp_log( "From mail invalid. Fallback to admin_email: $default_from" );
 
 		try {
 			if ( is_email( $default_from ) ) {
@@ -651,19 +819,31 @@ class Mailer extends Base {
 
 			$phpmailer->isSMTP();
 
-			// Get settings
-			$auth      = $this->get_setting_by_key( 'auth' );
-			$username  = sanitize_text_field( $this->get_setting_by_key( 'user_name' ) );
-			$password  = $this->get_smtp_password();
-			$host      = sanitize_text_field( $this->get_setting_by_key( 'host' ) );
-			$port      = intval( $this->get_setting_by_key( 'port' ) );
-			$insecure  = intval( $this->get_setting_by_key( 'insecure' ) );
-			$from_mail = sanitize_email( $this->get_setting_by_key( 'from_mail' ) );
-			$from_name = sanitize_text_field( $this->get_setting_by_key( 'from_name' ) );
-			$reply_to  = intval( $this->get_setting_by_key( 'replyTo' ) );
+			// Check if we should only send CF7 emails via SMTP
+			$smtp_mode = $this->get_setting_by_key( 'smtp_mode' );
+			if ( 'cf7_only' === $smtp_mode && ! self::$is_cf7_mail ) {
+				// If not a CF7 email and mode is CF7 only, return (skip SMTP config)
+				return;
+			}
 
-			// Validate required settings
-			if ( empty( $host ) ) {
+			// Enable SMTP
+			$phpmailer->isSMTP();
+
+			// Get settings
+			$auth          = $this->get_setting_by_key( 'auth' );
+			$username      = sanitize_text_field( $this->get_setting_by_key( 'user_name' ) );
+			$password      = $this->get_smtp_password();
+			$host          = sanitize_text_field( $this->get_setting_by_key( 'host' ) );
+			$port          = intval( $this->get_setting_by_key( 'port' ) );
+			$insecure      = intval( $this->get_setting_by_key( 'insecure' ) );
+			$raw_from_mail = $this->get_setting_by_key( 'from_mail' );
+			$from_mail     = is_email( $raw_from_mail ) ? sanitize_email( $raw_from_mail ) : '';
+			$from_name     = sanitize_text_field( $this->get_setting_by_key( 'from_name' ) );
+			$reply_to      = intval( $this->get_setting_by_key( 'replyTo' ) );
+
+			// Validate required settings (skip if OAuth2 will set the host)
+			$auth_type = $this->get_setting_by_key( 'auth_type' );
+			if ( empty( $host ) && 'oauth2' !== $auth_type ) {
 				throw new Exception( 'SMTP Host is required but not configured.' );
 			}
 
@@ -679,8 +859,26 @@ class Mailer extends Base {
 				$phpmailer->SMTPSecure = $auth;
 			}
 
-			// Configure authentication
-			$this->configure_smtp_auth( $phpmailer, $username, $password );
+			// Check authentication type (basic or oauth2) - $auth_type already set above
+			// Safety: if auth_method is 'smtp' (standard), force auth_type to 'basic'
+			// even if a stale 'oauth2' value is stored from a previous configuration.
+			$auth_method = $this->get_setting_by_key( 'auth_method' );
+			if ( 'smtp' === $auth_method && 'oauth2' === $auth_type ) {
+				$auth_type = 'basic';
+				cf7_smtp_log( 'auth_method is "smtp" but auth_type was "oauth2". Forcing basic authentication.' );
+			}
+
+			if ( 'oauth2' === $auth_type ) {
+				// Try OAuth2 authentication
+				if ( ! $this->configure_oauth2_auth( $phpmailer ) ) {
+					// Fall back to basic authentication if OAuth2 fails
+					cf7_smtp_log( 'OAuth2 configuration failed. Falling back to basic authentication.' );
+					$this->configure_smtp_auth( $phpmailer, $username, $password );
+				}
+			} else {
+				// Use basic authentication
+				$this->configure_smtp_auth( $phpmailer, $username, $password );
+			}
 
 			// Handle insecure connections
 			if ( ! empty( $insecure ) ) {
@@ -708,8 +906,9 @@ class Mailer extends Base {
 			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			$phpmailer->XMailer = 'WordPress/' . get_bloginfo( 'version' );
 
+			cf7_smtp_log( 'Final PHPMailer config: AuthType=' . $phpmailer->AuthType . ', SMTPAuth=' . ( $phpmailer->SMTPAuth ? 'true' : 'false' ) );
 		} catch ( Exception $e ) {
 			cf7_smtp_log( 'Failed to configure SMTP: ' . $e->getMessage() );
-		}
+		}//end try
 	}
 }

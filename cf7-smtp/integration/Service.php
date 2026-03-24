@@ -1,7 +1,4 @@
 <?php
-
-namespace cf7_smtp\Integration;
-
 /**
  * CF7_SMTP context class.
  *
@@ -12,27 +9,41 @@ namespace cf7_smtp\Integration;
  * @link      https://modul-r.codekraft.it/
  */
 
-
-if ( ! class_exists( 'WPCF7_Service' ) ) {
-	return;
-}
+namespace cf7_smtp\Integration;
 
 /**
  * Integration class from Contact Form 7
  */
+if ( ! class_exists( 'WPCF7_Service' ) ) {
+	return;
+}
 
 use WPCF7_Service as GlobalWPCF7_Service;
 
 /**
- * This Extention represents the skeleton of the integration API
+ * This Extension allows to enable and disable the smtp service
  */
-
 class Service extends GlobalWPCF7_Service {
 
+	/**
+	 * The service instance
+	 *
+	 * @var self
+	 */
 	private static $instance;
 
+	/**
+	 * Plugin options
+	 *
+	 * @var array
+	 */
 	public $options;
 
+	/**
+	 * Get singleton instance
+	 *
+	 * @return self
+	 */
 	public static function get_instance() {
 		if ( empty( self::$instance ) ) {
 			self::$instance = new self();
@@ -41,6 +52,9 @@ class Service extends GlobalWPCF7_Service {
 		return self::$instance;
 	}
 
+	/**
+	 * Constructor
+	 */
 	public function __construct() {
 		/**
 		 * Call the options otherwise the plugin will break in integration
@@ -48,9 +62,9 @@ class Service extends GlobalWPCF7_Service {
 		$this->options = get_option( 'cf7-smtp-options' );
 
 		if ( isset( $_POST['cf7_smtp_submit'] ) && check_admin_referer( 'cf7a_toggle', 'cf7a_nonce' ) ) {
-			$this->options['enabled'] = $_POST['cf7_smtp_submit'] === 'Enable';
+			$this->options['enabled'] = 'Enable' === sanitize_text_field( wp_unslash( $_POST['cf7_smtp_submit'] ) );
 			update_option( 'cf7-smtp-options', $this->options );
-			// add a notice that the settings have been saved
+			// Add a notice that the settings have been saved.
 			add_action(
 				'admin_notices',
 				function () {
@@ -112,6 +126,12 @@ class Service extends GlobalWPCF7_Service {
 		);
 	}
 
+	/**
+	 * Display admin notice
+	 *
+	 * @param string $message The message to display.
+	 * @return void
+	 */
 	public function admin_notice( $message = '' ) {
 	}
 
@@ -149,12 +169,13 @@ class Service extends GlobalWPCF7_Service {
 	 */
 	public function load( $action = '' ) {
 		if ( ! empty( $_SERVER['REQUEST_METHOD'] ) ) {
-			if ( 'setup' == $action && 'POST' == $_SERVER['REQUEST_METHOD'] ) {
+			if ( 'setup' === $action && 'POST' === $_SERVER['REQUEST_METHOD'] ) {
 				check_admin_referer( 'cf7-smtp-setup' );
 
 				if ( ! empty( $_POST['reset'] ) ) {
 					$redirect_to = $this->menu_page_url( 'action=setup' );
 					wp_safe_redirect( $redirect_to );
+					exit();
 				}
 				exit();
 			}
@@ -167,8 +188,8 @@ class Service extends GlobalWPCF7_Service {
 	 * The `display` function is used to display information about the SMTP plugin and provide options for
 	 * setup integration.
 	 *
-	 * @param string The "action" parameter is used to determine the specific action to be performed in the
-	 * "display" function. It is a string that can have two possible values:
+	 * @param string $action The "action" parameter is used to determine the specific action to be performed in the
+	 * "display" function. It is a string that can have two possible values.
 	 */
 	public function display( $action = '' ) {
 		printf(
@@ -197,7 +218,7 @@ class Service extends GlobalWPCF7_Service {
 			);
 		}
 
-		// Get the current checkbox status from the options
+		// Get the current checkbox status from the options.
 		echo '<div class="wrap">';
 		echo '<form method="post" action="">';
 		wp_nonce_field( 'cf7a_toggle', 'cf7a_nonce' );

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * CF7_SMTP plugin bootstrap
  *
@@ -81,7 +80,7 @@ class Initialize {
 					);
 				}
 			);
-		}
+		}//end if
 	}
 
 	/**
@@ -97,39 +96,56 @@ class Initialize {
 
 		foreach ( $this->classes as $class ) {
 			try {
+				// Skip interfaces and traits without using Reflection (which can cause fatal errors in PHP 7.4 if dependencies are missing)
+				if ( ! \class_exists( $class ) ) {
+					continue;
+				}
+
 				$temp = new $class();
 
 				if ( \method_exists( $temp, 'initialize' ) ) {
 					$temp->initialize();
 				}
+			} catch ( \Error $err ) {
+				// Safely catch errors like "Cannot instantiate abstract class" without crashing
+				if ( \strpos( $err->getMessage(), 'Cannot instantiate' ) !== false ) {
+					continue;
+				}
+
+				\do_action( 'cf7_smtp_initialize_failed', $err );
+
+				if ( WP_DEBUG ) {
+					throw new \Exception( \esc_html( $err->getMessage() ) );
+				}
 			} catch ( \Exception $err ) {
 				\do_action( 'cf7_smtp_initialize_failed', $err );
 
 				if ( WP_DEBUG ) {
-					throw new \Exception( esc_html( $err->getMessage() ) );
+					throw new \Exception( \esc_html( $err->getMessage() ) );
 				}
-			}
-		}
+			}//end try
+		}//end foreach
 	}
 
 	/**
 	 * Based on the folder loads the classes automatically using the Composer autoloader to detect the classes of a Namespace.
 	 *
-	 * @param string $namespace Class name to find.
-	 * @since 0.0.1
+	 * @param string $class_namespace Class name to find.
+	 *
 	 * @return array Return the classes.
+	 * @since 0.0.1
 	 */
-	private function get_classes( string $namespace ): array {
-		$prefix    = $this->composer->getPrefixesPsr4();
-		$classmap  = $this->composer->getClassMap();
-		$namespace = 'cf7_smtp\\' . $namespace;
+	private function get_classes( string $class_namespace ): array {
+		$prefix          = $this->composer->getPrefixesPsr4();
+		$classmap        = $this->composer->getClassMap();
+		$class_namespace = 'cf7_smtp\\' . $class_namespace;
 
 		// In case composer has autoload optimized.
 		if ( isset( $classmap['cf7_smtp\\Engine\\Initialize'] ) ) {
 			$classes = \array_keys( $classmap );
 
 			foreach ( $classes as $class ) {
-				if ( 0 !== \strncmp( (string) $class, $namespace, \strlen( $namespace ) ) ) {
+				if ( 0 !== \strncmp( (string) $class, $class_namespace, \strlen( $class_namespace ) ) ) {
 					continue;
 				}
 
@@ -139,13 +155,13 @@ class Initialize {
 			return $this->classes;
 		}
 
-		$namespace .= '\\';
+		$class_namespace .= '\\';
 
 		// In case composer is not optimized.
-		if ( isset( $prefix[ $namespace ] ) ) {
-			$folder    = $prefix[ $namespace ][0];
+		if ( isset( $prefix[ $class_namespace ] ) ) {
+			$folder    = $prefix[ $class_namespace ][0];
 			$php_files = $this->scandir( $folder );
-			$this->find_classes( $php_files, $folder, $namespace );
+			$this->find_classes( $php_files, $folder, $class_namespace );
 
 			if ( ! WP_DEBUG ) {
 				\wp_die( \esc_html__( 'cf7-smtp is on production environment with missing `composer dumpautoload -o` that will improve the performance on autoloading itself.', 'cf7-smtp' ) );
@@ -207,6 +223,6 @@ class Initialize {
 
 			$sub_php_files = $this->scandir( $folder . '/' . $php_file );
 			$this->find_classes( $sub_php_files, $folder . '/' . $php_file, $base . $php_file . '\\' );
-		}
+		}//end foreach
 	}
 }

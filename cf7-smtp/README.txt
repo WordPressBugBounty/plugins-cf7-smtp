@@ -1,10 +1,10 @@
 === SMTP for Contact Form 7 ===
-Contributors: codekraft, gardenboi
+Contributors: codekraft, gardenboi, MemoryShadow
 Tags: smtp, mail, wp mail, contact form 7, oauth2
 Requires PHP: 7.1
 Requires at least: 5.5
-Tested up to: 6.9
-Stable tag: 1.1.0
+Tested up to: 7.0
+Stable tag: 1.1.1
 Requires plugins: Contact Form 7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -50,14 +50,16 @@ Only if the software, the webmail application on the browser or the mobile e-mai
 
 **Google Gmail**
 To use Gmail with OAuth2, you need to create a Google Cloud Project:
-1. Go to **Google Cloud Console** (console.cloud.google.com).
-2. Create a new project.
-3. Go to **APIs & Services > Credentials** and click **Create Credentials > OAuth client ID**.
-4. Application type: **Web application**.
-5. **Authorized redirect URIs**: Copy the URL from the plugin settings (e.g., `https://your-site.com/wp-admin/admin.php?page=cf7-smtp&oauth2_callback=1`).
-6. Copy the **Client ID** and **Client Secret** into the plugin settings.
-7. Important: Go to **OAuth consent screen > Test users** and add your email address if the app is in "Testing" mode.
-8. Click **Connect with OAuth2** in the plugin settings.
+1. **Create Project:** Go to [Google Cloud Console](https://console.cloud.google.com/) and create a new project.
+2. **Enable Gmail API (Required):** Go to **APIs & Services > Library**, search for **Gmail API**, and click **Enable**.
+3. **Configure Consent Screen:** Go to **OAuth consent screen** and create an **External** app.
+    * **Scopes:** Click *Add or Remove Scopes*, search for the Gmail API, and check the boxes for `.../auth/userinfo.email` and `.../auth/gmail.compose` (or `https://mail.google.com/`).
+    * **Publishing Status:** Click **Publish App** to push it to production (otherwise, your connection token will expire every 7 days).
+4. **Create Credentials:** Go to **Credentials > Create Credentials > OAuth client ID**.
+    * Application type: **Web application**.
+    * **Authorized redirect URIs**: Copy and paste the exact callback URL provided in your plugin settings.
+5. **Connect:** Copy the generated **Client ID** and **Client Secret** into the plugin settings and click **Connect**.
+6. **Grant Permissions (Critical):** During the Google login popup, click *Advanced > Go to App* if prompted with an "unverified app" warning. You **must explicitly check the boxes** that ask for permission to compose/send emails before clicking Continue.
 
 **Microsoft Office 365**
 1. Go to the **Azure Portal** (portal.azure.com).
@@ -156,6 +158,20 @@ By contributing, you agree that your contributions will be licensed under its GP
 4. Activate the plugin in the Plugin dashboard
 
 == Changelog ==
+
+= 1.1.1 =
+- Security: Implemented AES-256-GCM encryption for sensitive data with enhanced key and IV handling.
+- Security: Hardened OAuth2 flow with strict state validation to prevent replay attacks and improved sanitization of GET parameters.
+- Security: Added autocomplete="off" to OAuth2 Client ID and Secret fields and implemented nonce validation for import/export actions.
+- New: Introduced custom OAuth2 Scopes support and configurable scope separators.
+- New: Added a dedicated Reply-To email input field, replacing the legacy checkbox logic for better flexibility.
+- Enhancement: Integrated SMTP Transaction Logging to capture raw debug details for easier troubleshooting.
+- Enhancement: Added tracking for CF7 form IDs and Page IDs during email submissions.
+- Enhancement: Added a notification system to handle specific error responses from Microsoft OAuth services.
+- Enhancement: Added a secondary OAuth redirect URI without parameters to satisfy strict Microsoft requirements.
+- Refactor: Significant code cleanup to align with WordPress Coding Standards and PHPMailer method naming conventions.
+- Note: Legacy "Reply-To" settings are automatically migrated to the new reply_to_email configuration attribute.
+- Special thanks to @MemoryShadow for significant contributions for the MS Outloook 365 setup, security hardening and OAuth2 stability.
 
 = 1.1.0 =
 * **New:** Added OAuth2 authentication support for Microsoft Office 365.

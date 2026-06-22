@@ -1,8 +1,8 @@
 <?php return array(
     'root' => array(
         'name' => 'wpbp/wordpress-plugin-boilerplate-powered',
-        'pretty_version' => '1.1.1',
-        'version' => '1.1.1.0',
+        'pretty_version' => '1.1.2',
+        'version' => '1.1.2.0',
         'reference' => null,
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
@@ -128,8 +128,8 @@
             'dev_requirement' => false,
         ),
         'wpbp/wordpress-plugin-boilerplate-powered' => array(
-            'pretty_version' => '1.1.1',
-            'version' => '1.1.1.0',
+            'pretty_version' => '1.1.2',
+            'version' => '1.1.2.0',
             'reference' => null,
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
